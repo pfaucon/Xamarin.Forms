@@ -18,6 +18,10 @@ namespace Xamarin.Forms.Platform.UWP
 		Brush _textDefaultBrush;
 		Brush _defaultTextColorFocusBrush;
 		Brush _defaultPlaceholderColorFocusBrush;
+		bool _cursorPositionChangePending;
+		bool _selectionLengthChangePending;
+		bool _nativeSelectionIsUpdating;
+
 		IElementController ElementController => Element as IElementController;
 
 		protected override void OnElementChanged(ElementChangedEventArgs<Entry> e)
@@ -34,11 +38,17 @@ namespace Xamarin.Forms.Platform.UWP
 					textBox.TextChanged += OnNativeTextChanged;
 					textBox.KeyUp += TextBoxOnKeyUp;
 					textBox.SelectionChanged += SelectionChanged;
+					textBox.GotFocus += TextBoxGotFocus;
 					// If the Forms VisualStateManager is in play or the user wants to disable the Forms legacy
 					// color stuff, then the underlying textbox should just use the Forms VSM states
 					textBox.UseFormsVsm = e.NewElement.HasVisualStateGroups()
 						|| !e.NewElement.OnThisPlatform().GetIsLegacyColorModeEnabled();
 				}
+
+				// When we set the control text, it triggers the SelectionChanged event, which updates CursorPosition and SelectionLength;
+				// These one-time-use variables will let us initialize a CursorPosition and SelectionLength via ctor/xaml/etc.
+				_cursorPositionChangePending = Element.IsSet(Entry.CursorPositionProperty);
+				_selectionLengthChangePending = Element.IsSet(Entry.SelectionLengthProperty);
 
 				UpdateIsPassword();
 				UpdateText();
@@ -51,9 +61,19 @@ namespace Xamarin.Forms.Platform.UWP
 				UpdateMaxLength();
 				UpdateDetectReadingOrderFromContent();
 				UpdateReturnType();
-				UpdateCursorPosition();
-				UpdateSelectionLength();
+
+				if (_cursorPositionChangePending)
+					UpdateCursorPosition();
+
+				if (_selectionLengthChangePending)
+					UpdateSelectionLength();
 			}
+		}
+
+		void TextBoxGotFocus(object sender, RoutedEventArgs e)
+		{
+			UpdateCursorPosition();
+			UpdateSelectionLength();
 		}
 
 		protected override void Dispose(bool disposing)
@@ -63,6 +83,7 @@ namespace Xamarin.Forms.Platform.UWP
 				Control.TextChanged -= OnNativeTextChanged;
 				Control.KeyUp -= TextBoxOnKeyUp;
 				Control.SelectionChanged -= SelectionChanged;
+				Control.GotFocus -= TextBoxGotFocus;
 			}
 
 			base.Dispose(disposing);
@@ -183,8 +204,7 @@ namespace Xamarin.Forms.Platform.UWP
 		void UpdateInputScope()
 		{
 			Entry entry = Element;
-			var custom = entry.Keyboard as CustomKeyboard;
-			if (custom != null)
+			if (entry.Keyboard is CustomKeyboard custom)
 			{
 				Control.IsTextPredictionEnabled = (custom.Flags & KeyboardFlags.Suggestions) != 0;
 				Control.IsSpellCheckEnabled = (custom.Flags & KeyboardFlags.Spellcheck) != 0;
@@ -276,51 +296,86 @@ namespace Xamarin.Forms.Platform.UWP
 
 		void SelectionChanged(object sender, RoutedEventArgs e)
 		{
-			var control = Control;
-			if (control == null || Element == null)
+			if (_nativeSelectionIsUpdating || Control == null || Element == null)
 				return;
 
-			var start = Element.CursorPosition;
+			int cursorPosition = Element.CursorPosition;
 
-			if (control.SelectionStart != start)
-				ElementController?.SetValueFromRenderer(Entry.CursorPositionProperty, control.SelectionStart);
+			if (!_cursorPositionChangePending)
+			{
+				var start = cursorPosition;
+				int selectionStart = Control.SelectionStart;
+				if (selectionStart != start)
+				{
+					_nativeSelectionIsUpdating = true;
+					ElementController?.SetValueFromRenderer(Entry.CursorPositionProperty, selectionStart);
+				}
+			}
 
-			var selectionLength = control.SelectionLength;
-			if (selectionLength != Element.SelectionLength)
-				ElementController?.SetValueFromRenderer(Entry.SelectionLengthProperty, selectionLength);
+			if (!_selectionLengthChangePending)
+			{
+				int elementSelectionLength = System.Math.Min(Control.Text.Length - cursorPosition, Element.SelectionLength);
+
+				int controlSelectionLength = Control.SelectionLength;
+				if (controlSelectionLength != elementSelectionLength)
+				{
+					_nativeSelectionIsUpdating = true;
+					ElementController?.SetValueFromRenderer(Entry.SelectionLengthProperty, controlSelectionLength);
+				}
+			}
+
+			_nativeSelectionIsUpdating = false;
 		}
 
 		void UpdateSelectionLength()
 		{
-			var control = Control;
-			if (control == null || Element == null)
+			if (_nativeSelectionIsUpdating || Control == null || Element == null)
 				return;
 
-			if (Element.IsSet(Entry.SelectionLengthProperty))
+			if (Control.Focus(FocusState.Programmatic))
 			{
-				var selectionLength = Element.SelectionLength;
-				if (selectionLength != control.SelectionLength)
+				int selectionLength;
+				if (Element.IsSet(Entry.SelectionLengthProperty))
+					selectionLength = System.Math.Min(Control.Text.Length - Element.CursorPosition, Element.SelectionLength);
+				else
+					selectionLength = 0;
+
+				if (selectionLength != Control.SelectionLength)
 				{
-					control.SelectionLength = selectionLength;
-					control.Focus(FocusState.Programmatic);
+					_nativeSelectionIsUpdating = true;
+					Control.SelectionLength = selectionLength;
+					_nativeSelectionIsUpdating = false;
 				}
+
+				_selectionLengthChangePending = false;
 			}
 		}
 
 		void UpdateCursorPosition()
 		{
-			var control = Control;
-			if (control == null || Element == null)
+			if (_nativeSelectionIsUpdating || Control == null || Element == null )
 				return;
 
-			if (Element.IsSet(Entry.CursorPositionProperty))
+			if (Control.Focus(FocusState.Programmatic))
 			{
-				var start = Element.CursorPosition;
-				if (start != control.SelectionStart)
+				int start;
+				if (Element.IsSet(Entry.CursorPositionProperty))
+					start = Element.CursorPosition;
+				else
+					start = Control.Text.Length;
+
+				if (start != Control.SelectionStart)
 				{
-					control.SelectionStart = start;
-					control.Focus(FocusState.Programmatic);
+					_nativeSelectionIsUpdating = true;
+					Control.SelectionStart = start;
+					_nativeSelectionIsUpdating = false;
+
+					// Length is dependent on start, so we'll need to update it
+					_selectionLengthChangePending = true;
+					UpdateSelectionLength();
 				}
+
+				_cursorPositionChangePending = false;
 			}
 		}
 	}
