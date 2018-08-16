@@ -394,11 +394,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 				var currentSelection = Control.SelectedTextRange;
 				if (currentSelection.Start != start || currentSelection.End != end)
-				{
-					_nativeSelectionIsUpdating = true;
 					Control.SelectedTextRange = Control.GetTextRange(start, end);
-					_nativeSelectionIsUpdating = false;
-				}
 
 				_cursorPositionChangePending = _selectionLengthChangePending = false;
 			}

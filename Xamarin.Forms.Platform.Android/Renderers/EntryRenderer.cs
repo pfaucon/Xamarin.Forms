@@ -356,11 +356,7 @@ namespace Xamarin.Forms.Platform.Android
 				end = System.Math.Max(start, end);
 
 				if (Control.SelectionStart != start || Control.SelectionEnd != end)
-				{
-					_nativeSelectionIsUpdating = true;
 					Control.SetSelection(start, end);
-					_nativeSelectionIsUpdating = false;
-				}
 
 				_cursorPositionChangePending = _selectionLengthChangePending = false;
 			}
