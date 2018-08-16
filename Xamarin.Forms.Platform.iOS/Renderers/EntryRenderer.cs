@@ -371,30 +371,44 @@ namespace Xamarin.Forms.Platform.iOS
 				int cursorPosition = Element.CursorPosition;
 
 				UITextPosition start;
+				int startOffset = 0;
 				bool cursorPositionSet = Element.IsSet(Entry.CursorPositionProperty);
 				if (cursorPositionSet)
-					start = Control.GetPosition(Control.BeginningOfDocument, cursorPosition);
+				{
+					start = Control.GetPosition(Control.BeginningOfDocument, cursorPosition) ?? Control.EndOfDocument;
+					startOffset = Math.Max(0, (int)Control.GetOffsetFromPosition(Control.BeginningOfDocument, start));
+
+					if (startOffset != cursorPosition)
+					{
+						_nativeSelectionIsUpdating = true;
+						ElementController?.SetValueFromRenderer(Entry.CursorPositionProperty, startOffset);
+						_nativeSelectionIsUpdating = false;
+					}
+				}
 				else
 					start = Control.EndOfDocument;
 
-				int startOffset = (int)Control.GetOffsetFromPosition(Control.BeginningOfDocument, start);
-
 				UITextPosition end;
+				int endOffset = startOffset;
 				bool selectionLengthSet = Element.IsSet(Entry.SelectionLengthProperty);
 				if (selectionLengthSet)
-					end = Control.GetPosition(start, Math.Max(startOffset, Math.Min(Control.Text.Length - cursorPosition, Element.SelectionLength))) ?? start;
+				{
+					int selectionLength = Element.SelectionLength;
+					end = Control.GetPosition(start, Math.Max(startOffset, Math.Min(Control.Text.Length - cursorPosition, selectionLength))) ?? start;
+					endOffset = Math.Max(startOffset, (int)Control.GetOffsetFromPosition(Control.BeginningOfDocument, end));
+
+					int newSelectionLength = Math.Max(0, endOffset - startOffset);
+					if (newSelectionLength != selectionLength)
+					{
+						_nativeSelectionIsUpdating = true;
+						ElementController?.SetValueFromRenderer(Entry.SelectionLengthProperty, newSelectionLength);
+						_nativeSelectionIsUpdating = false;
+					}
+				}
 				else
 					end = start;
 
-				int endOffset = (int)Control.GetOffsetFromPosition(Control.BeginningOfDocument, end);
-
-				// Let's enforce that end is always greater than or equal to start
-				if (endOffset < startOffset)
-					end = start;
-
-				var currentSelection = Control.SelectedTextRange;
-				if (currentSelection.Start != start || currentSelection.End != end)
-					Control.SelectedTextRange = Control.GetTextRange(start, end);
+				Control.SelectedTextRange = Control.GetTextRange(start, end);
 
 				_cursorPositionChangePending = _selectionLengthChangePending = false;
 			}

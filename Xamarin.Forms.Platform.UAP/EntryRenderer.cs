@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
 using Windows.System;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -314,7 +315,7 @@ namespace Xamarin.Forms.Platform.UWP
 
 			if (!_selectionLengthChangePending)
 			{
-				int elementSelectionLength = System.Math.Min(Control.Text.Length - cursorPosition, Element.SelectionLength);
+				int elementSelectionLength = Math.Min(Control.Text.Length - cursorPosition, Element.SelectionLength);
 
 				int controlSelectionLength = Control.SelectionLength;
 				if (controlSelectionLength != elementSelectionLength)
@@ -336,12 +337,21 @@ namespace Xamarin.Forms.Platform.UWP
 			{
 				int selectionLength;
 				if (Element.IsSet(Entry.SelectionLengthProperty))
-					selectionLength = System.Math.Min(Control.Text.Length - Element.CursorPosition, Element.SelectionLength);
+				{
+					int elemSelectionLength = Element.SelectionLength;
+					selectionLength = Math.Max(0, Math.Min(Control.Text.Length - Element.CursorPosition, elemSelectionLength));
+
+					if (elemSelectionLength != selectionLength)
+					{
+						_nativeSelectionIsUpdating = true;
+						ElementController?.SetValueFromRenderer(Entry.SelectionLengthProperty, selectionLength);
+						_nativeSelectionIsUpdating = false;
+					}
+				}
 				else
 					selectionLength = 0;
 
-				if (selectionLength != Control.SelectionLength)
-					Control.SelectionLength = selectionLength;
+				Control.SelectionLength = selectionLength;
 
 				_selectionLengthChangePending = false;
 			}
@@ -356,17 +366,24 @@ namespace Xamarin.Forms.Platform.UWP
 			{
 				int start;
 				if (Element.IsSet(Entry.CursorPositionProperty))
-					start = Element.CursorPosition;
+				{
+					int cursorPosition = Element.CursorPosition;
+					start = Math.Min(Control.Text.Length, cursorPosition);
+
+					if (start != cursorPosition)
+					{
+						_nativeSelectionIsUpdating = true;
+						ElementController?.SetValueFromRenderer(Entry.CursorPositionProperty, start);
+						_nativeSelectionIsUpdating = false;
+					}
+				}
 				else
 					start = Control.Text.Length;
 
-				if (start != Control.SelectionStart)
-				{
-					Control.SelectionStart = start;
+				Control.SelectionStart = start;
 
-					// Length is dependent on start, so we'll need to update it
-					UpdateSelectionLength();
-				}
+				// Length is dependent on start, so we'll need to update it
+				UpdateSelectionLength();
 
 				_cursorPositionChangePending = false;
 			}

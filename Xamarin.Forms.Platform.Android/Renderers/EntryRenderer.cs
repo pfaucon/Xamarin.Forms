@@ -341,22 +341,39 @@ namespace Xamarin.Forms.Platform.Android
 				int start;
 				bool cursorPositionSet = Element.IsSet(Entry.CursorPositionProperty);
 				if (cursorPositionSet)
-					start = Element.CursorPosition;
+				{				
+					int cursorPosition = Element.CursorPosition;
+					start = System.Math.Min(Control.Text.Length, cursorPosition);
+
+					if (start != cursorPosition)
+					{
+						_nativeSelectionIsUpdating = true;
+						ElementController?.SetValueFromRenderer(Entry.CursorPositionProperty, start);
+						_nativeSelectionIsUpdating = false;
+					}
+				}
 				else
 					start = Control.Length();
 
 				int end;
 				bool selectionLengthSet = Element.IsSet(Entry.SelectionLengthProperty);
 				if (selectionLengthSet)
-					end = System.Math.Min(Control.Length(), start + Element.SelectionLength);
+				{
+					int selectionLength = Element.SelectionLength;
+					end = System.Math.Max(start, System.Math.Min(Control.Length(), start + selectionLength));
+
+					int newSelectionLength = System.Math.Max(0, end - start);
+					if (newSelectionLength != selectionLength)
+					{
+						_nativeSelectionIsUpdating = true;
+						ElementController?.SetValueFromRenderer(Entry.SelectionLengthProperty, newSelectionLength);
+						_nativeSelectionIsUpdating = false;
+					}
+				}
 				else
 					end = start;
 
-				// Let's enforce that end is always greater than or equal to start
-				end = System.Math.Max(start, end);
-
-				if (Control.SelectionStart != start || Control.SelectionEnd != end)
-					Control.SetSelection(start, end);
+				Control.SetSelection(start, end);
 
 				_cursorPositionChangePending = _selectionLengthChangePending = false;
 			}
