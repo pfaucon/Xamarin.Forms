@@ -336,20 +336,21 @@ namespace Xamarin.Forms.Platform.UWP
 			if (Control.Focus(FocusState.Programmatic))
 			{
 				int selectionLength;
+				int elemSelectionLength = Element.SelectionLength;
+
 				if (Element.IsSet(Entry.SelectionLengthProperty))
 				{
-					int elemSelectionLength = Element.SelectionLength;
 					selectionLength = Math.Max(0, Math.Min(Control.Text.Length - Element.CursorPosition, elemSelectionLength));
-
-					if (elemSelectionLength != selectionLength)
-					{
-						_nativeSelectionIsUpdating = true;
-						ElementController?.SetValueFromRenderer(Entry.SelectionLengthProperty, selectionLength);
-						_nativeSelectionIsUpdating = false;
-					}
 				}
 				else
 					selectionLength = 0;
+
+				if (elemSelectionLength != selectionLength)
+				{
+					_nativeSelectionIsUpdating = true;
+					ElementController?.SetValueFromRenderer(Entry.SelectionLengthProperty, selectionLength);
+					_nativeSelectionIsUpdating = false;
+				}
 
 				Control.SelectionLength = selectionLength;
 
@@ -365,20 +366,20 @@ namespace Xamarin.Forms.Platform.UWP
 			if (Control.Focus(FocusState.Programmatic))
 			{
 				int start;
-				if (Element.IsSet(Entry.CursorPositionProperty))
-				{
-					int cursorPosition = Element.CursorPosition;
-					start = Math.Min(Control.Text.Length, cursorPosition);
+				int cursorPosition = Element.CursorPosition;
 
-					if (start != cursorPosition)
-					{
-						_nativeSelectionIsUpdating = true;
-						ElementController?.SetValueFromRenderer(Entry.CursorPositionProperty, start);
-						_nativeSelectionIsUpdating = false;
-					}
-				}
+				if (Element.IsSet(Entry.CursorPositionProperty))
+					start = Math.Min(Control.Text.Length, cursorPosition);
 				else
 					start = Control.Text.Length;
+
+
+				if (start != cursorPosition)
+				{
+					_nativeSelectionIsUpdating = true;
+					ElementController?.SetValueFromRenderer(Entry.CursorPositionProperty, start);
+					_nativeSelectionIsUpdating = false;
+				}
 
 				Control.SelectionStart = start;
 

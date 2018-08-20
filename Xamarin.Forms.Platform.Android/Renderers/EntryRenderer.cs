@@ -338,45 +338,56 @@ namespace Xamarin.Forms.Platform.Android
 
 			if (Control.RequestFocus())
 			{
-				int start;
-				bool cursorPositionSet = Element.IsSet(Entry.CursorPositionProperty);
-				if (cursorPositionSet)
-				{				
-					int cursorPosition = Element.CursorPosition;
-					start = System.Math.Min(Control.Text.Length, cursorPosition);
-
-					if (start != cursorPosition)
-					{
-						_nativeSelectionIsUpdating = true;
-						ElementController?.SetValueFromRenderer(Entry.CursorPositionProperty, start);
-						_nativeSelectionIsUpdating = false;
-					}
-				}
-				else
-					start = Control.Length();
-
-				int end;
-				bool selectionLengthSet = Element.IsSet(Entry.SelectionLengthProperty);
-				if (selectionLengthSet)
-				{
-					int selectionLength = Element.SelectionLength;
-					end = System.Math.Max(start, System.Math.Min(Control.Length(), start + selectionLength));
-
-					int newSelectionLength = System.Math.Max(0, end - start);
-					if (newSelectionLength != selectionLength)
-					{
-						_nativeSelectionIsUpdating = true;
-						ElementController?.SetValueFromRenderer(Entry.SelectionLengthProperty, newSelectionLength);
-						_nativeSelectionIsUpdating = false;
-					}
-				}
-				else
-					end = start;
+				int start = GetSelectionStart();
+				int end = GetSelectionEnd(start);
 
 				Control.SetSelection(start, end);
 
 				_cursorPositionChangePending = _selectionLengthChangePending = false;
 			}
+		}
+
+		int GetSelectionEnd(int start)
+		{
+			int end;
+			bool selectionLengthSet = Element.IsSet(Entry.SelectionLengthProperty);
+			int selectionLength = Element.SelectionLength;
+
+			if (selectionLengthSet)
+				end = System.Math.Max(start, System.Math.Min(Control.Length(), start + selectionLength));
+			else
+				end = start;
+
+			int newSelectionLength = System.Math.Max(0, end - start);
+			if (newSelectionLength != selectionLength)
+			{
+				_nativeSelectionIsUpdating = true;
+				ElementController?.SetValueFromRenderer(Entry.SelectionLengthProperty, newSelectionLength);
+				_nativeSelectionIsUpdating = false;
+			}
+
+			return end;
+		}
+
+		int GetSelectionStart()
+		{
+			int start;
+			bool cursorPositionSet = Element.IsSet(Entry.CursorPositionProperty);
+			int cursorPosition = Element.CursorPosition;
+
+			if (cursorPositionSet)
+				start = System.Math.Min(Control.Text.Length, cursorPosition);
+			else
+				start = Control.Length();
+
+			if (start != cursorPosition)
+			{
+				_nativeSelectionIsUpdating = true;
+				ElementController?.SetValueFromRenderer(Entry.CursorPositionProperty, start);
+				_nativeSelectionIsUpdating = false;
+			}
+
+			return start;
 		}
 	}
 }
