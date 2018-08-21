@@ -9,6 +9,7 @@ using ATimePicker = Android.Widget.TimePicker;
 using Object = Java.Lang.Object;
 using AView = Android.Views.View;
 using Android.OS;
+using System.Globalization;
 
 namespace Xamarin.Forms.Platform.Android
 {
@@ -135,7 +136,7 @@ namespace Xamarin.Forms.Platform.Android
 		void SetTime(TimeSpan time)
 		{
 			var timeFormat = Is24HourView ? "HH:mm" : Element.Format;
-			Control.Text = DateTime.Today.Add(time).ToString(timeFormat);
+			Control.Text = DateTime.Today.Add(time).ToString(timeFormat, CultureInfo.InvariantCulture);
 		}
 
 		void UpdateFont()
