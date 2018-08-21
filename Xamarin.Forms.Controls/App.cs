@@ -53,7 +53,8 @@ namespace Xamarin.Forms.Controls
 
 		public Page CreateDefaultMainPage()
 		{
-			var layout = new StackLayout { BackgroundColor = Color.Red };
+			return new Issues.Issue2894();
+			/*var layout = new StackLayout { BackgroundColor = Color.Red };
 			layout.Children.Add(new Label { Text ="This is master Page" });
 			var master = new ContentPage { Title = "Master", Content = layout,  BackgroundColor = Color.SkyBlue };
 			master.On<iOS>().SetUseSafeArea(true);
@@ -62,7 +63,7 @@ namespace Xamarin.Forms.Controls
 				AutomationId = DefaultMainPageId,
 				Master = master,
 				Detail = CoreGallery.GetMainPage()
-			};
+			};*/
 		}
 
 		protected override void OnAppLinkRequestReceived(Uri uri)

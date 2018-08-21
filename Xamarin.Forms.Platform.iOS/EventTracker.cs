@@ -53,7 +53,7 @@ namespace Xamarin.Forms.Platform.MacOS
 			get
 			{
 				return ((_renderer?.Element as IGestureController)
-							?.CompositeGestureRecognizers as ObservableCollection<IGestureRecognizer>);				
+							?.CompositeGestureRecognizers as ObservableCollection<IGestureRecognizer>);
 			}
 		}
 
@@ -67,6 +67,9 @@ namespace Xamarin.Forms.Platform.MacOS
 			foreach (var kvp in _gestureRecognizers)
 			{
 				_handler.RemoveGestureRecognizer(kvp.Value);
+#if __MOBILE__
+				kvp.Value.ShouldReceiveTouch = null;
+#endif
 				kvp.Value.Dispose();
 			}
 
@@ -91,9 +94,15 @@ namespace Xamarin.Forms.Platform.MacOS
 		Action<NSClickGestureRecognizer> CreateRecognizerHandler(WeakReference weakEventTracker, WeakReference weakRecognizer, ClickGestureRecognizer clickRecognizer)
 		{
 			return new Action<NSClickGestureRecognizer>((sender) =>
-			{
+			{		
+				if (!weakRecognizer.IsAlive)
+					return;
+
 				var eventTracker = weakEventTracker.Target as EventTracker;
 				var view = eventTracker?._renderer?.Element as View;
+				
+				if (eventTracker._disposed || view == null)
+					return;
 
 				var originPoint = sender.LocationInView(null);
 				originPoint = NSApplication.SharedApplication.KeyWindow.ContentView.ConvertPointToView(originPoint, eventTracker._renderer.NativeView);
@@ -112,9 +121,15 @@ namespace Xamarin.Forms.Platform.MacOS
 		{
 			return new Action<NSClickGestureRecognizer>((sender) =>
 			{
+				if (!weakRecognizer.IsAlive)
+					return;
+
 				var clickGestureRecognizer = ((ChildGestureRecognizer)weakRecognizer.Target).GestureRecognizer as ClickGestureRecognizer;
 				var eventTracker = weakEventTracker.Target as EventTracker;
-				var view = eventTracker?._renderer?.Element as View;
+				var view = eventTracker?._renderer?.Element as View;			
+				
+				if (eventTracker._disposed || view == null)
+					return;
 
 				var originPoint = sender.LocationInView(null);
 				originPoint = NSApplication.SharedApplication.KeyWindow.ContentView.ConvertPointToView(originPoint, eventTracker._renderer.NativeView);
@@ -133,8 +148,14 @@ namespace Xamarin.Forms.Platform.MacOS
 		{
 			return new Action<UITapGestureRecognizer>((sender) =>
 			{
+				if (!weakRecognizer.IsAlive)
+					return;
+
 				var eventTracker = weakEventTracker.Target as EventTracker;
 				var view = eventTracker?._renderer?.Element as View;
+
+				if (eventTracker._disposed || view == null)
+					return;
 
 				var originPoint = sender.LocationInView(null);
 				originPoint = UIApplication.SharedApplication.KeyWindow.ConvertPointToView(originPoint, eventTracker._renderer.NativeView);
@@ -153,9 +174,15 @@ namespace Xamarin.Forms.Platform.MacOS
 		{
 			return new Action<UITapGestureRecognizer>((sender) =>
 			{
+				if (!weakRecognizer.IsAlive)
+					return;
+
 				var tapGestureRecognizer = ((ChildGestureRecognizer)weakRecognizer.Target).GestureRecognizer as TapGestureRecognizer;
 				var eventTracker = weakEventTracker.Target as EventTracker;
 				var view = eventTracker?._renderer?.Element as View;
+
+				if (eventTracker._disposed || view == null)
+					return;
 
 				var originPoint = sender.LocationInView(null);
 				originPoint = UIApplication.SharedApplication.KeyWindow.ConvertPointToView(originPoint, eventTracker._renderer.NativeView);
